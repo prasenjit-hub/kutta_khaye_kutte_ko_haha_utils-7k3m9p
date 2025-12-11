@@ -1,0 +1,16 @@
+*.mp4
+*.avi
+*.mkv
+*.mov
+downloads/
+processed/
+test_output/
+logs/*.log
+instagram_session.json
+youtube_credentials.json
+youtube_token.pickle
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db

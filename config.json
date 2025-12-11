@@ -1,0 +1,79 @@
+{
+  "youtube_channel": "https://www.youtube.com/@MrBeast",
+  "youtube_upload": {
+    "credentials_file": "youtube_credentials.json",
+    "title_template": "{title} - Part {part}",
+    "description_template": "🎬 {title}\n\n📌 This is Part {part} of {total}\n\n🔥 Watch the full series for the complete experience!\n\n✨ Original Video by @MrBeast: {url}\n\n---\n\n💯 Follow for more amazing content!\n\n👍 Like, Share & Subscribe for daily updates!\n\n#Shorts #Viral #Trending #MrBeast #Entertainment #MustWatch #Amazing #Epic #Incredible #BestOf #TopContent",
+    "tags": [
+      "shorts",
+      "viral",
+      "trending",
+      "MrBeast",
+      "MrBeast shorts",
+      "MrBeast clips",
+      "MrBeast moments",
+      "MrBeast highlights",
+      "viral shorts",
+      "youtube shorts",
+      "trending shorts",
+      "viral video",
+      "entertainment",
+      "amazing",
+      "epic",
+      "incredible",
+      "must watch",
+      "best moments",
+      "highlights",
+      "top content",
+      "popular",
+      "viral content",
+      "trending video",
+      "short video",
+      "yt shorts",
+      "viral clips",
+      "best clips",
+      "top viral",
+      "trending now",
+      "viral now",
+      "youtube viral",
+      "short form",
+      "quick watch",
+      "bite sized",
+      "daily content"
+    ],
+    "category_id": "24",
+    "privacy_status": "public",
+    "delay_between_uploads_seconds": 10
+  },
+  "video_settings": {
+    "segment_duration_seconds": 60,
+    "max_segments_per_video": 10,
+    "max_uploads_per_run": 3,
+    "target_resolution": [
+      1080,
+      1920
+    ],
+    "aspect_ratio": "9:16",
+    "zoom_level": 1.0
+  },
+  "overlay_settings": {
+    "part_text_format": "Part {n}",
+    "part_text_position": "top",
+    "part_text_size": 80,
+    "text_color": [
+      255,
+      255,
+      255
+    ],
+    "shadow_color": [
+      0,
+      0,
+      0
+    ]
+  },
+  "paths": {
+    "downloads": "downloads",
+    "processed": "processed",
+    "logs": "logs"
+  }
+}

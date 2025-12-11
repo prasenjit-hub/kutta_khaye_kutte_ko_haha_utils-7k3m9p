@@ -1,0 +1,62 @@
+name: YouTube Shorts Automation
+
+on:
+  # Schedule: Every 6 hours
+  schedule:
+    - cron: '0 */6 * * *'  # At minute 0 past every 6th hour
+  
+  # Manual trigger (for testing)
+  workflow_dispatch:
+
+jobs:
+  automate:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Code
+      uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.GH_PAT }}
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: 📦 Install FFmpeg
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ffmpeg
+    
+    - name: 📚 Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: 🔐 Setup YouTube Credentials
+      run: |
+        echo "${{ secrets.YOUTUBE_CREDENTIALS }}" | base64 -d > youtube_credentials.json
+        echo "${{ secrets.YOUTUBE_TOKEN }}" | base64 -d > youtube_token.pickle
+    
+    - name: 🚀 Run Automation
+      run: |
+        python main.py --full
+      env:
+        PYTHONUNBUFFERED: 1
+    
+    - name: 💾 Commit Progress
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+        git add tracking.json
+        git diff --quiet && git diff --staged --quiet || git commit -m "📊 Update progress [skip ci]"
+        git push
+      continue-on-error: true
+    
+    - name: 📊 Upload Logs (On Failure)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: automation-logs
+        path: logs/
+        retention-days: 7

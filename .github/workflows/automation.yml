@@ -1,11 +1,11 @@
 name: YouTube Shorts Automation
 
 on:
-  # Schedule: Every 6 hours
+  # Schedule: Every 12 hours (2x daily)
   schedule:
-    - cron: '0 */12 * * *'  # Run every 12 hours (e.g. 00:00 and 12:00)
+    - cron: '0 */12 * * *'  
   
-  # Manual trigger (for testing)
+  # Manual trigger
   workflow_dispatch:
 
 jobs:
@@ -14,7 +14,7 @@ jobs:
     
     steps:
     - name: 📥 Checkout Code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         token: ${{ secrets.GH_PAT }}
     
@@ -55,7 +55,7 @@ jobs:
     
     - name: 📊 Upload Logs (On Failure)
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: automation-logs
         path: logs/

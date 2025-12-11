@@ -63,10 +63,10 @@ class VideoSplitter:
                 segment.write_videofile(
                     segment_path,
                     codec='libx264',
-                    audio_codec='libmp3lame',  # Switch to MP3 for stability
+                    audio_codec='aac',
                     temp_audiofile=f'temp-audio-{segment_num}.m4a',
                     remove_temp=True,
-                    verbose=False,
+                    verbose=True,  # Enable verbose to see FFmpeg error
                     logger=SilentLogger(),
                     fps=30,
                     threads=1,

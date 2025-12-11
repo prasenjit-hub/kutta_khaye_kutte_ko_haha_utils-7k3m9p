@@ -17,6 +17,8 @@ class SilentLogger:
     def tqdm(self, *args, **kwargs): return args[0]
     def write(self, message): pass
     def flush(self): pass
+    def iter_bar(self, **kwargs): pass
+    def iterators(self, **kwargs): pass
 
 class VideoEditor:
     def __init__(self, config: dict):

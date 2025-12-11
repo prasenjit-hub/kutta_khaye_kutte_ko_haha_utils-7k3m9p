@@ -223,9 +223,7 @@ youtube shorts automation/
 ### YouTube Authentication Failed
 ```
 Solution: 
-- Check youtube_credentials.json exists
-- Delete youtube_token.pickle and re-authenticate
-- Verify OAuth consent screen has test user added
+*************
 ```
 
 ### FFmpeg Not Found

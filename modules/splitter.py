@@ -75,9 +75,9 @@ class VideoSplitter:
                     '-i', video_path,  # Input file
                     '-t', str(duration),  # Duration
                     '-c:v', 'libx264',  # Video codec
-                    '-preset', 'ultrafast',  # Fast encoding
+                    '-preset', 'slow',  # Good quality encoding
                     '-c:a', 'aac',  # Audio codec
-                    '-b:a', '128k',  # Audio bitrate
+                    '-b:a', '256k',  # Good audio quality
                     '-movflags', '+faststart',  # Web optimization
                     '-loglevel', 'error',  # Only show errors
                     segment_path

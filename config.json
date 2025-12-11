@@ -47,8 +47,8 @@
   },
   "video_settings": {
     "segment_duration_seconds": 60,
-    "max_segments_per_video": 10,
-    "max_uploads_per_run": 3,
+    "max_segments_per_video": 999,
+    "max_uploads_per_run": 1,
     "target_resolution": [
       1080,
       1920

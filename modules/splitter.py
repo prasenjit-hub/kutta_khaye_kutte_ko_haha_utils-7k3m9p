@@ -55,8 +55,8 @@ class VideoSplitter:
                 # Create segment
                 segment = video.subclip(start_time, end_time)
                 
-                # Output path
-                segment_filename = f"{video_id}_part{segment_num}.mp4"
+                # Output path (Switching to MKV for stability)
+                segment_filename = f"{video_id}_part{segment_num}.mkv"
                 segment_path = os.path.join(self.output_dir, segment_filename)
                 
                 # Write segment
@@ -64,15 +64,14 @@ class VideoSplitter:
                 segment.write_videofile(
                     segment_path,
                     codec='libx264',
-                    audio=False,  # DIAGNOSTIC: Disable audio to test video writing
-                    # audio_codec='aac',
-                    # temp_audiofile=f'temp-audio-{segment_num}.m4a',
-                    # remove_temp=True,
+                    # audio_codec='aac', # Let automatic selection work for MKV
+                    temp_audiofile=f'temp-audio-{segment_num}.m4a',
+                    remove_temp=True,
                     verbose=True,
                     logger=PrintingLogger(),
                     fps=30,
                     threads=1,
-                    preset='ultrafast'
+                    preset='veryfast' # Slightly safer than ultrafast
                 )
                 
                 segment_paths.append(segment_path)
@@ -113,5 +112,4 @@ class VideoSplitter:
             return {}
 
 if __name__ == "__main__":
-    # Test
     splitter = VideoSplitter()

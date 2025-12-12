@@ -297,6 +297,16 @@ class YouTubeShortsAutomation:
                 part=part_num
             )
             
+            # Ensure title doesn't exceed 99 characters (YouTube limit is 100)
+            if len(upload_title) > 99:
+                # Calculate how much to trim from the original title
+                hashtags = " #shorts #viral #mrbeast"
+                part_text = f" - Part {part_num}"
+                available_chars = 99 - len(hashtags) - len(part_text) - 3  # -3 for "..."
+                truncated_title = title[:available_chars] + "..."
+                upload_title = f"{truncated_title}{part_text}{hashtags}"
+                logger.info(f"Title truncated to {len(upload_title)} chars")
+            
             upload_description = upload_config['description_template'].format(
                 title=title,
                 part=part_num,
@@ -322,12 +332,6 @@ class YouTubeShortsAutomation:
                 else:
                     logger.error(f"✗ Part {part_num} upload failed")
                 
-                # Delay between uploads
-                import time
-                delay = upload_config.get('delay_between_uploads_seconds', 10)
-                if delay > 0 and part_num != parts_to_process[-1]:
-                    logger.info(f"Waiting {delay}s before next upload...")
-                    time.sleep(delay)
                     
             except Exception as e:
                 logger.error(f"Error uploading part {part_num}: {e}")

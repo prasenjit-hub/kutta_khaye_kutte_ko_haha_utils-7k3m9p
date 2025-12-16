@@ -40,7 +40,12 @@
       1920
     ],
     "aspect_ratio": "9:16",
-    "zoom_level": 1.0
+    "zoom_level": 1.0,
+    "split_screen": {
+      "enabled": true,
+      "gameplay_folder": "assets/gameplay",
+      "top_video_height_percentage": 0.55
+    }
   },
   "overlay_settings": {
     "part_text_format": "Part {n}",

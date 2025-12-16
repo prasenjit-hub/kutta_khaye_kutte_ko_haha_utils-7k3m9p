@@ -1,11 +1,12 @@
 """
 Video Editor
-Adds text overlays (part numbers) and converts to YouTube Shorts format (9:16)
-Uses FFmpeg for reliable video processing with blur background for landscape videos
+Adds text overlays and converts to YouTube Shorts format (9:16)
+Supports Split Screen (Gameplay Bottom) to avoid reused content issues
 """
 import subprocess
 import os
 import logging
+import random
 from PIL import Image, ImageDraw, ImageFont
 
 logging.basicConfig(level=logging.INFO)
@@ -50,6 +51,7 @@ class VideoEditor:
         self.config = config
         self.overlay_settings = config.get('overlay_settings', {})
         self.video_settings = config.get('video_settings', {})
+        self.split_screen_config = self.video_settings.get('split_screen', {'enabled': False})
     
     def _create_text_overlay(self, text: str, width: int, height: int = 200) -> str:
         """Create a text overlay image using PIL"""
@@ -81,7 +83,13 @@ class VideoEditor:
             font = ImageFont.load_default()
         
         # Get text dimensions
-        bbox = draw.textbbox((0, 0), text, font=font)
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+        except AttributeError:
+            # Fallback for older Pillow
+            bbox = draw.textsize(text, font=font)
+            bbox = (0, 0, bbox[0], bbox[1])
+
         text_width = bbox[2] - bbox[0]
         
         # Center text
@@ -104,64 +112,119 @@ class VideoEditor:
         
         return overlay_path
     
+    def _get_random_gameplay(self, duration: float):
+        """Find a gameplay video and get random start time"""
+        folder = self.split_screen_config.get('gameplay_folder', 'assets/gameplay')
+        
+        if not os.path.exists(folder):
+            logger.warning(f"Gameplay folder not found: {folder}")
+            return None, 0
+            
+        files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(('.mp4', '.mkv', '.mov'))]
+        
+        if not files:
+            logger.warning("No gameplay videos found!")
+            return None, 0
+            
+        gameplay_path = random.choice(files)
+        
+        # Get its duration
+        gp_info = get_video_info(gameplay_path)
+        gp_duration = gp_info['duration']
+        
+        if gp_duration <= duration:
+            start_time = 0
+        else:
+            # Random start, ensuring we have enough duration left
+            max_start = gp_duration - duration
+            start_time = random.uniform(0, max_start)
+            
+        logger.info(f"Selected gameplay: {gameplay_path} (Start: {start_time:.2f}s)")
+        return gameplay_path, start_time
+
     def add_overlays(self, video_path: str, part_number: int, title: str, output_path: str = None) -> str:
         """
-        Add text overlays to video and convert to YouTube Shorts format (9:16)
-        For landscape videos: Adds blur background (not crop/zoom) to keep full content visible
+        Add text overlays and convert to proper format (Split Screen or Blur Background)
         """
         if output_path is None:
             base, ext = os.path.splitext(video_path)
             output_path = f"{base}_edited{ext}"
         
         try:
-            logger.info(f"Adding overlays to: {video_path}")
+            logger.info(f"Processing video: {video_path}")
             
-            # Verify input exists
             if not os.path.exists(video_path):
                 logger.error(f"Input file not found: {video_path}")
                 return None
             
-            # Get video info
+            # Get main video info
             video_info = get_video_info(video_path)
             input_width = video_info['width']
             input_height = video_info['height']
+            duration = video_info['duration']
             
-            logger.info(f"Input video: {input_width}x{input_height}")
-            
-            # Target resolution (9:16 for YouTube Shorts)
+            # Target resolution
             target_width, target_height = self.video_settings.get('target_resolution', [1080, 1920])
             
             # Create text overlay
             part_text = self.overlay_settings.get('part_text_format', 'Part {n}').format(n=part_number)
             overlay_path = self._create_text_overlay(part_text, target_width)
             
-            # Build FFmpeg filter for 9:16 conversion
-            # For landscape videos: Use blur background padding (like old editor)
-            filter_complex = self._build_filter_with_blur_background(
-                input_width, input_height,
-                target_width, target_height
-            )
+            # CHECK SPLIT SCREEN
+            use_split_screen = self.split_screen_config.get('enabled', False)
+            gameplay_path = None
+            gameplay_start = 0
             
-            # FFmpeg command
-            cmd = [
-                'ffmpeg', '-y',
-                '-i', video_path,  # Input video
-                '-i', overlay_path,  # Overlay image
+            if use_split_screen:
+                gameplay_path, gameplay_start = self._get_random_gameplay(duration)
+                if not gameplay_path:
+                    logger.warning("Falling back to blur background mode")
+                    use_split_screen = False
+            
+            # BUILD FFMPEG COMMAND
+            cmd = ['ffmpeg', '-y']
+            
+            # Input 0: Main Video
+            cmd.extend(['-i', video_path])
+            
+            # Input 1: Gameplay (if split screen) or Overlay (if blur)
+            if use_split_screen:
+                # Need to add gameplay file with seek
+                cmd.extend(['-ss', str(gameplay_start), '-t', str(duration), '-i', gameplay_path])
+                # Input 2: Overlay
+                cmd.extend(['-i', overlay_path])
+                
+                # Filter for Split Screen
+                filter_complex = self._build_filter_split_screen(target_width, target_height)
+                # Map audio from main video only (0:a)
+                map_args = ['-map', '[v_out]', '-map', '0:a']
+                
+            else:
+                # Input 1: Overlay
+                cmd.extend(['-i', overlay_path])
+                
+                # Filter for Blur Background
+                filter_complex = self._build_filter_with_blur_background(
+                    input_width, input_height, target_width, target_height
+                )
+                map_args = ['-map', '[outv]', '-map', '0:a?']
+
+            # Common options
+            cmd.extend([
                 '-filter_complex', filter_complex,
-                '-map', '[outv]',
-                '-map', '0:a?',  # Keep audio if exists
+                *map_args,
                 '-c:v', 'libx264',
                 '-preset', 'slow',
                 '-crf', '23',
                 '-c:a', 'aac',
                 '-b:a', '256k',
-                '-r', '30',  # 30 fps
+                '-r', '30',
                 '-movflags', '+faststart',
                 '-loglevel', 'error',
                 output_path
-            ]
+            ])
             
-            logger.info(f"Writing edited video to: {output_path}")
+            logger.info(f"Running FFmpeg...")
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             # Cleanup temp overlay
@@ -172,87 +235,81 @@ class VideoEditor:
                 logger.error(f"FFmpeg error: {result.stderr}")
                 return None
             
-            # Verify output
             if os.path.exists(output_path) and os.path.getsize(output_path) > 1000:
-                logger.info(f"✓ Overlay added successfully")
+                logger.info(f"✓ Video processed successfully")
                 return output_path
             else:
                 logger.error("Output file missing or too small")
                 return None
                 
         except Exception as e:
-            logger.error(f"Error adding overlays: {e}")
+            logger.error(f"Error processing video: {e}")
             import traceback
             traceback.print_exc()
             return None
     
+    def _build_filter_split_screen(self, out_w: int, out_h: int) -> str:
+        """
+        Builds filter for:
+        Top: Main Video (55% height)
+        Bottom: Gameplay (45% height)
+        """
+        top_pct = self.split_screen_config.get('top_video_height_percentage', 0.55)
+        
+        top_h = int(out_h * top_pct)
+        # Ensure even number
+        if top_h % 2 != 0: top_h -= 1
+            
+        bottom_h = out_h - top_h
+        
+        # [0:v] is main, [1:v] is gameplay, [2:v] is overlay
+        
+        filter_complex = (
+            # 1. Scale and Crop Main Video (Top)
+            f"[0:v]scale={out_w}:{top_h}:force_original_aspect_ratio=increase,"
+            f"crop={out_w}:{top_h}[top];"
+            
+            # 2. Scale and Crop Gameplay (Bottom)
+            f"[1:v]scale={out_w}:{bottom_h}:force_original_aspect_ratio=increase,"
+            f"crop={out_w}:{bottom_h}[bottom];"
+            
+            # 3. Stack them
+            f"[top][bottom]vstack[stacked];"
+            
+            # 4. Add Overlay
+            f"[stacked][2:v]overlay=(W-w)/2:0[v_out]"
+        )
+        return filter_complex
+
     def _build_filter_with_blur_background(self, in_w: int, in_h: int, out_w: int, out_h: int) -> str:
-        """
-        Build FFmpeg filter complex for 9:16 conversion with BLUR BACKGROUND
-        
-        For landscape videos:
-        1. Create a blurred, darkened copy as background
-        2. Resize original to fit width
-        3. Center original on blurred background
-        4. Add text overlay on top
-        
-        This keeps ALL content visible without zooming/cropping!
-        """
-        target_aspect = out_w / out_h  # 9:16 = 0.5625
+        """Fallback filter for blur background mode"""
+        target_aspect = out_w / out_h
         current_aspect = in_w / in_h
         
         if current_aspect > target_aspect:
-            # LANDSCAPE video - needs blur background padding
-            # 
-            # Filter explanation:
-            # [0:v] - Input video
-            # split - Make 2 copies
-            # [bg] - Background copy: scale to fill, blur heavily, darken
-            # [fg] - Foreground copy: scale to fit width, center vertically
-            # overlay - Put foreground on background
-            # [1:v] overlay - Add text overlay on top
-            
             filter_complex = (
-                # Split input into background and foreground
                 "[0:v]split=2[bg_in][fg_in];"
-                
-                # Background: scale to fill 9:16, blur heavily, darken
                 f"[bg_in]scale={out_w}:{out_h}:force_original_aspect_ratio=increase,"
                 f"crop={out_w}:{out_h},"
-                "gblur=sigma=18,"  # Moderate blur (not too heavy)
-                "eq=brightness=-0.3:saturation=0.5"  # Darken and desaturate
+                "gblur=sigma=18,"
+                "eq=brightness=-0.3:saturation=0.5"
                 "[bg];"
-                
-                # Foreground: scale to fit width, keep aspect ratio
                 f"[fg_in]scale={out_w}:-2[fg_scaled];"
-                
-                # Overlay foreground centered on background
                 "[bg][fg_scaled]overlay=(W-w)/2:(H-h)/2[video_out];"
-                
-                # Add text overlay on top
                 "[video_out][1:v]overlay=(W-w)/2:0[outv]"
             )
         else:
-            # PORTRAIT or SQUARE video - simple scale and pad/crop
             if current_aspect < target_aspect:
-                # Taller than target - scale to width, crop height
                 filter_complex = (
                     f"[0:v]scale={out_w}:-2,crop={out_w}:{out_h}[scaled];"
                     "[scaled][1:v]overlay=(W-w)/2:0[outv]"
                 )
             else:
-                # Already correct aspect - just resize
                 filter_complex = (
                     f"[0:v]scale={out_w}:{out_h}[scaled];"
                     "[scaled][1:v]overlay=(W-w)/2:0[outv]"
                 )
-        
         return filter_complex
-    
-    def _truncate_title(self, title: str, max_length: int = 40) -> str:
-        if len(title) <= max_length:
-            return title
-        return title[:max_length-3] + '...'
 
 
 if __name__ == "__main__":

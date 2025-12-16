@@ -59,6 +59,10 @@ class VideoEditor:
         img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
+        # Draw SOLID BLACK background strip for text (Header style)
+        header_height = 180
+        draw.rectangle([(0, 0), (width, header_height)], fill=(0, 0, 0, 255))
+        
         # Load font
         font_size = self.overlay_settings.get('part_text_size', 80)
         font = None
@@ -86,22 +90,22 @@ class VideoEditor:
         try:
             bbox = draw.textbbox((0, 0), text, font=font)
         except AttributeError:
-            # Fallback for older Pillow
             bbox = draw.textsize(text, font=font)
             bbox = (0, 0, bbox[0], bbox[1])
 
         text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
         
-        # Center text
+        # Center text vertically in the header strip
         x = (width - text_width) // 2
-        y = 50
+        y = (header_height - text_height) // 2 - 10 # Slightly up adjustment
         
         # Draw shadow
         shadow_offset = 3
         for ox in [-shadow_offset, 0, shadow_offset]:
             for oy in [-shadow_offset, 0, shadow_offset]:
                 if ox != 0 or oy != 0:
-                    draw.text((x + ox, y + oy), text, font=font, fill=(0, 0, 0, 255))
+                    draw.text((x + ox, y + oy), text, font=font, fill=(50, 50, 50, 255))
         
         # Draw main text
         draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
@@ -168,7 +172,7 @@ class VideoEditor:
             
             # Create text overlay
             part_text = self.overlay_settings.get('part_text_format', 'Part {n}').format(n=part_number)
-            overlay_path = self._create_text_overlay(part_text, target_width)
+            overlay_path = self._create_text_overlay(part_text, target_width, target_height) # Pass full height
             
             # CHECK SPLIT SCREEN
             use_split_screen = self.split_screen_config.get('enabled', False)
@@ -251,33 +255,41 @@ class VideoEditor:
     def _build_filter_split_screen(self, out_w: int, out_h: int) -> str:
         """
         Builds filter for:
-        Top: Main Video (55% height)
-        Bottom: Gameplay (45% height)
+        Header: 180px reserved (Black)
+        Content Height: out_h - 180
+        Top: Main Video (70% of content)
+        Bottom: Gameplay (30% of content)
         """
-        top_pct = self.split_screen_config.get('top_video_height_percentage', 0.55)
+        header_h = 180
+        available_h = out_h - header_h
         
-        top_h = int(out_h * top_pct)
+        top_pct = self.split_screen_config.get('top_video_height_percentage', 0.70)
+        
+        top_h = int(available_h * top_pct)
         # Ensure even number
         if top_h % 2 != 0: top_h -= 1
             
-        bottom_h = out_h - top_h
+        bottom_h = available_h - top_h
         
         # [0:v] is main, [1:v] is gameplay, [2:v] is overlay
         
         filter_complex = (
-            # 1. Scale and Crop Main Video (Top)
-            f"[0:v]scale={out_w}:{top_h}:force_original_aspect_ratio=increase,"
+            # 1. Scale and Crop Main Video (Top) - WITH HORIZONTAL FLIP
+            f"[0:v]hflip,scale={out_w}:{top_h}:force_original_aspect_ratio=increase,"
             f"crop={out_w}:{top_h}[top];"
             
             # 2. Scale and Crop Gameplay (Bottom)
             f"[1:v]scale={out_w}:{bottom_h}:force_original_aspect_ratio=increase,"
             f"crop={out_w}:{bottom_h}[bottom];"
             
-            # 3. Stack them
+            # 3. Stack them (Total height = available_h)
             f"[top][bottom]vstack[stacked];"
             
-            # 4. Add Overlay
-            f"[stacked][2:v]overlay=(W-w)/2:0[v_out]"
+            # 4. Pad top to make space for header (push content down)
+            f"[stacked]pad={out_w}:{out_h}:0:{header_h}:black[padded];"
+            
+            # 5. Add Overlay (Text on header)
+            f"[padded][2:v]overlay=(W-w)/2:0[v_out]"
         )
         return filter_complex
 

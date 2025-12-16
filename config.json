@@ -44,7 +44,7 @@
     "split_screen": {
       "enabled": true,
       "gameplay_folder": "assets/gameplay",
-      "top_video_height_percentage": 0.55
+      "top_video_height_percentage": 0.70
     }
   },
   "overlay_settings": {

@@ -59,10 +59,6 @@ class VideoEditor:
         img = Image.new('RGBA', (width, height), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
         
-        # Draw SOLID BLACK background strip for text (Header style)
-        header_height = 180
-        draw.rectangle([(0, 0), (width, header_height)], fill=(0, 0, 0, 255))
-        
         # Load font
         font_size = self.overlay_settings.get('part_text_size', 80)
         font = None
@@ -94,18 +90,17 @@ class VideoEditor:
             bbox = (0, 0, bbox[0], bbox[1])
 
         text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
         
-        # Center text vertically in the header strip
+        # Center text horizontally, fixed Y position
         x = (width - text_width) // 2
-        y = (header_height - text_height) // 2 - 10 # Slightly up adjustment
+        y = 50 
         
-        # Draw shadow
-        shadow_offset = 3
+        # Draw STRONG shadow for visibility over video
+        shadow_offset = 4
         for ox in [-shadow_offset, 0, shadow_offset]:
             for oy in [-shadow_offset, 0, shadow_offset]:
                 if ox != 0 or oy != 0:
-                    draw.text((x + ox, y + oy), text, font=font, fill=(50, 50, 50, 255))
+                    draw.text((x + ox, y + oy), text, font=font, fill=(0, 0, 0, 255))
         
         # Draw main text
         draw.text((x, y), text, font=font, fill=(255, 255, 255, 255))
@@ -172,7 +167,7 @@ class VideoEditor:
             
             # Create text overlay
             part_text = self.overlay_settings.get('part_text_format', 'Part {n}').format(n=part_number)
-            overlay_path = self._create_text_overlay(part_text, target_width, target_height) # Pass full height
+            overlay_path = self._create_text_overlay(part_text, target_width)
             
             # CHECK SPLIT SCREEN
             use_split_screen = self.split_screen_config.get('enabled', False)
@@ -255,15 +250,13 @@ class VideoEditor:
     def _build_filter_split_screen(self, out_w: int, out_h: int) -> str:
         """
         Builds filter for:
-        Header: 180px reserved (Black)
-        Content Height: out_h - 180
-        Top: Main Video (70% of content)
-        Bottom: Gameplay (30% of content)
+        Top: Main Video (60% height)
+        Bottom: Gameplay (40% height)
+        Text Overlay: Directly on top of video with shadow
         """
-        header_h = 180
-        available_h = out_h - header_h
+        available_h = out_h # Full screen used
         
-        top_pct = self.split_screen_config.get('top_video_height_percentage', 0.70)
+        top_pct = self.split_screen_config.get('top_video_height_percentage', 0.60)
         
         top_h = int(available_h * top_pct)
         # Ensure even number
@@ -282,14 +275,11 @@ class VideoEditor:
             f"[1:v]scale={out_w}:{bottom_h}:force_original_aspect_ratio=increase,"
             f"crop={out_w}:{bottom_h}[bottom];"
             
-            # 3. Stack them (Total height = available_h)
+            # 3. Stack them (Total height = out_h)
             f"[top][bottom]vstack[stacked];"
             
-            # 4. Pad top to make space for header (push content down)
-            f"[stacked]pad={out_w}:{out_h}:0:{header_h}:black[padded];"
-            
-            # 5. Add Overlay (Text on header)
-            f"[padded][2:v]overlay=(W-w)/2:0[v_out]"
+            # 4. Add Overlay (Text directly on video)
+            f"[stacked][2:v]overlay=(W-w)/2:0[v_out]"
         )
         return filter_complex
 

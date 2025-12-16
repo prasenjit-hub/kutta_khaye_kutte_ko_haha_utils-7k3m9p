@@ -32,7 +32,7 @@
     "privacy_status": "public"
   },
   "video_settings": {
-    "segment_duration_seconds": 60,
+    "segment_duration_seconds": 59,
     "max_segments_per_video": 999,
     "max_uploads_per_run": 1,
     "target_resolution": [

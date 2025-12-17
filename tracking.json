@@ -21,7 +21,8 @@
         11,
         12,
         13,
-        14
+        14,
+        15
       ],
       "total_parts": 30,
       "youtube_video_ids": [
@@ -38,10 +39,11 @@
         "TQEvXHW8RzA",
         "Cyteivno6Rk",
         "ivkjJMak1rw",
-        "xXK2bm8_XBY"
+        "xXK2bm8_XBY",
+        "yRQQbCZAjiM"
       ],
       "downloaded_at": null,
-      "last_upload": "2025-12-17T01:24:13.787658"
+      "last_upload": "2025-12-17T12:44:31.205527"
     },
     "Ah_uuTwGOYU": {
       "title": "World's Fastest Man Vs Robot!",
@@ -422,5 +424,5 @@
     }
   },
   "channel_url": "https://www.youtube.com/@MrBeast",
-  "last_scrape": "2025-12-17T01:19:43.963561"
+  "last_scrape": "2025-12-17T12:40:01.952625"
 }
